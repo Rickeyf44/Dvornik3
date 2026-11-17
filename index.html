@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Дворник-Магнат 3D</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #4fa3e3;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      touch-action: none;
+    }
+    #game-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    /* MAIN MENU */
+    #main-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: radial-gradient(circle at 50% 30%, rgba(30, 50, 75, 0.72), rgba(10, 18, 30, 0.92));
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #fff;
+      text-align: center;
+    }
+    #main-menu.hidden {
+      display: none;
+    }
+    .menu-logo {
+      font-size: 36px;
+      font-weight: 900;
+      color: #ffca28;
+      text-shadow: 0 4px 0 #8d4500, 0 8px 20px rgba(0,0,0,0.6);
+      margin-bottom: 6px;
+      line-height: 1.1;
+    }
+    .menu-sub {
+      font-size: 14px;
+      color: #cfd8dc;
+      margin-bottom: 22px;
+      max-width: 320px;
+    }
+    .menu-card {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      border-radius: 20px;
+      padding: 16px;
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: 20px;
+    }
+    .menu-stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .menu-stat-row:last-child {
+      border-bottom: none;
+    }
+    .menu-stat-row span.gold {
+      color: #ffd54f;
+    }
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 340px;
+    }
+    .btn-play {
+      background: linear-gradient(180deg, #66bb6a, #2e7d32);
+      border: 3px solid #fff;
+      border-radius: 18px;
+      padding: 16px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      box-shadow: 0 6px 0 #1b5e20, 0 10px 24px rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+    .btn-play:active {
+      transform: translateY(3px);
+      box-shadow: 0 3px 0 #1b5e20;
+    }
+    .btn-menu-secondary {
+      background: linear-gradient(180deg, #ffca28, #ff8f00);
+      border: 3px solid #fff;
+      border-radius: 16px;
+      padding: 13px;
+      color: #2b1800;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 5px 0 #b25e00;
+      cursor: pointer;
+    }
+    .btn-menu-secondary:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #b25e00;
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed;
+      top: env(safe-area-inset-top, 8px);
+      left: 10px;
+      right: 10px;
+      z-index: 15;
+      display: none;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      padding-top: 6px;
+    }
+    #hud.active {
+      display: flex;
+    }
+    .stats-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .badge {
+      background: rgba(20, 28, 38, 0.88);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 14px;
+      padding: 7px 12px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .badge span.val {
+      color: #ffd54f;
+    }
+    .bar-wrap {
+      width: 145px;
+      height: 10px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+    #bag-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #66bb6a, #ffa726, #ef5350);
+      transition: width 0.15s;
+    }
+    #clean-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #29b6f6, #00e676);
+      transition: width 0.2s;
+    }
+    .hud-right {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      pointer-events: auto;
+    }
+    .hud-btn {
+      border: 2px solid #fff;
+      border-radius: 14px;
+      padding: 9px 13px;
+      font-weight: 900;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    }
+    #btn-shop-open {
+      background: linear-gradient(180deg, #ffca28, #ff8f00);
+      color: #2b1800;
+    }
+    #btn-donate-open {
+      background: linear-gradient(180deg, #42a5f5, #1565c0);
+      color: #fff;
+    }
+    #btn-menu-open {
+      background: rgba(20, 28, 38, 0.88);
+      color: #fff;
+    }
+
+    #toast {
+      position: fixed;
+      top: 132px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 18;
+      background: rgba(0, 0, 0, 0.82);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 13px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      white-space: nowrap;
+    }
+
+    /* DYNAMIC FULL-LEFT-HALF JOYSTICK */
+    #joystick-touch-area {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 58%;
+      height: 65%;
+      z-index: 12;
+      display: none;
+      touch-action: none;
+    }
+    #joystick-touch-area.active {
+      display: block;
+    }
+    #joystick-base {
+      position: fixed;
+      left: 24px;
+      bottom: 32px;
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      border: 3px solid rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.15s;
+    }
+    #joystick-knob {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #cfd8dc);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      transform: translate(0px, 0px);
+      pointer-events: none;
+    }
+
+    /* ACTION BUTTONS */
+    #action-buttons {
+      position: fixed;
+      right: 18px;
+      bottom: 28px;
+      z-index: 16;
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+    #action-buttons.active {
+      display: flex;
+    }
+    .act-btn {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+      cursor: pointer;
+      touch-action: none;
+    }
+    #btn-dash {
+      background: linear-gradient(180deg, #29b6f6, #0277bd);
+      width: 64px;
+      height: 64px;
+    }
+    #btn-jump {
+      background: linear-gradient(180deg, #66bb6a, #2e7d32);
+    }
+    .act-btn.pressed {
+      transform: scale(0.9);
+      filter: brightness(1.18);
+    }
+
+    /* MODALS (SHOP & STARS DONATE) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      background: rgba(10, 16, 24, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal-card {
+      background: #1e2733;
+      border: 3px solid #ffca28;
+      border-radius: 22px;
+      width: 100%;
+      max-width: 390px;
+      max-height: 86vh;
+      overflow-y: auto;
+      padding: 18px;
+      color: #fff;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.65);
+    }
+    .modal-card.donate-theme {
+      border-color: #42a5f5;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 19px;
+      color: #ffca28;
+    }
+    .modal-card.donate-theme .modal-header h2 {
+      color: #64b5f6;
+    }
+    .btn-close {
+      background: #ef5350;
+      border: 2px solid #fff;
+      color: #fff;
+      border-radius: 12px;
+      width: 34px;
+      height: 34px;
+      font-weight: 900;
+      font-size: 17px;
+      cursor: pointer;
+    }
+    .upg-item {
+      background: #2a3647;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .upg-info h3 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+    }
+    .upg-info p {
+      margin: 0;
+      font-size: 12px;
+      color: #b0bec5;
+    }
+    .upg-buy {
+      background: linear-gradient(180deg, #66bb6a, #2e7d32);
+      border: 2px solid #fff;
+      border-radius: 12px;
+      padding: 8px 11px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      min-width: 86px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .upg-buy.stars {
+      background: linear-gradient(180deg, #42a5f5, #1565c0);
+    }
+    .upg-buy:disabled {
+      background: #546e7a;
+      border-color: #90a4ae;
+      opacity: 0.65;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- MAIN MENU -->
+  <div id="main-menu">
+    <div class="menu-logo">💩 ДВОРНИК-МАГНАТ 3D</div>
+    <div class="menu-sub">Очисти парк, спаси район от мусорного апокалипсиса и стань главным чистоменом!</div>
+    <div class="menu-card">
+      <div class="menu-stat-row"><span>🏙️ Локация:</span><span class="gold" id="menu-rank">Двор Хрущёвки</span></div>
+      <div class="menu-stat-row"><span>💰 Баланс:</span><span class="gold" id="menu-coins">0</span></div>
+      <div class="menu-stat-row"><span>🧹 Собрано всего:</span><span class="gold" id="menu-total">0 ед.</span></div>
+      <div class="menu-stat-row"><span>⭐ VIP-статус:</span><span class="gold" id="menu-vip">Обычный</span></div>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn-play" id="btn-start-game" type="button">▶ ИГРАТЬ</button>
+      <button class="btn-menu-secondary" id="btn-menu-donate" type="button">⭐ БУСТЫ ЗА STARS / ДОНАТ</button>
+    </div>
+  </div>
+
+  <!-- IN-GAME HUD -->
+  <div id="hud">
+    <div class="stats-col">
+      <div class="badge">💰 <span class="val" id="ui-coins">0</span> | <span id="ui-rank" style="color:#81d4fa;font-size:12px;">Двор</span></div>
+      <div class="badge" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+        <div>🎒 Рюкзак: <span class="val" id="ui-bag">0 / 10</span></div>
+        <div class="bar-wrap"><div id="bag-bar"></div></div>
+      </div>
+      <div class="badge" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+        <div>✨ Чистота района: <span class="val" id="ui-clean">0 / 50</span></div>
+        <div class="bar-wrap"><div id="clean-bar"></div></div>
+      </div>
+    </div>
+    <div class="hud-right">
+      <button class="hud-btn" id="btn-menu-open" type="button">🏠 МЕНЮ</button>
+      <button class="hud-btn" id="btn-shop-open" type="button">🛒 АПГРЕЙДЫ</button>
+      <button class="hud-btn" id="btn-donate-open" type="button">⭐ STARS</button>
+    </div>
+  </div>
+
+  <div id="toast">Собери кучки и сдай в зелёный круг!</div>
+
+  <!-- ACTIVE LEFT-HALF TOUCH ZONE -->
+  <div id="joystick-touch-area">
+    <div id="joystick-base">
+      <div id="joystick-knob"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT ACTION BUTTONS -->
+  <div id="action-buttons">
+    <button class="act-btn" id="btn-dash" type="button">⚡<br>РЫВОК</button>
+    <button class="act-btn" id="btn-jump" type="button">⬆️<br>ПРЫЖОК</button>
+  </div>
+
+  <!-- UPGRADE SHOP MODAL -->
+  <div class="modal-overlay" id="shop-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>🛒 Апгрейды Дворника</h2>
+        <button class="btn-close" id="btn-shop-close" type="button">✕</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>🎒 Рюкзак (Ур. <span id="lvl-bag">1</span>)</h3>
+          <p>Вместимость: <span id="desc-bag">10</span> ед.</p>
+        </div>
+        <button class="upg-buy" id="buy-bag" type="button">15 💰</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>🧹 Совок (Ур. <span id="lvl-tool">1</span>)</h3>
+          <p>Радиус и доход x<span id="desc-tool">1</span></p>
+        </div>
+        <button class="upg-buy" id="buy-tool" type="button">25 💰</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>👟 Ботинки (Ур. <span id="lvl-speed">1</span>)</h3>
+          <p>Скорость бега +15%</p>
+        </div>
+        <button class="upg-buy" id="buy-speed" type="button">20 💰</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>🛸 Дрон-пылесос (<span id="lvl-pet">Нет</span>)</h3>
+          <p>Сам собирает кучки и даёт x2 монет</p>
+        </div>
+        <button class="upg-buy" id="buy-pet" type="button">100 💰</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STARS DONATE MODAL -->
+  <div class="modal-overlay" id="donate-modal">
+    <div class="modal-card donate-theme">
+      <div class="modal-header">
+        <h2>⭐ Полезные бусты (Stars)</h2>
+        <button class="btn-close" id="btn-donate-close" type="button">✕</button>
+      </div>
+      <p style="font-size:12px;color:#cfd8dc;margin-top:0;">Ускоряют очистку района и открывают элитные локации. Поддерживают развитие игры!</p>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>🧲 Магнит чистоты</h3>
+          <p>Притягивает кучки издалека (+3 метра)</p>
+        </div>
+        <button class="upg-buy stars" id="don-magnet" type="button">25 ⭐</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>💎 VIP Золотой Дворник</h3>
+          <p>Доход x3 навсегда + безлимитный рюкзак</p>
+        </div>
+        <button class="upg-buy stars" id="don-vip" type="button">75 ⭐</button>
+      </div>
+      <div class="upg-item">
+        <div class="upg-info">
+          <h3>🚛 Камаз-Ассенизатор</h3>
+          <p>Мгновенно очищает всю карту (+250 💰)</p>
+        </div>
+        <button class="upg-buy stars" id="don-nuke" type="button">15 ⭐</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+    try {
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      }
+    } catch (e) {}
+
+    function haptic(type) {
+      try {
+        if (!tg || !tg.HapticFeedback) return;
+        if (type === 'light') tg.HapticFeedback.impactOccurred('light');
+        else if (type === 'medium') tg.HapticFeedback.impactOccurred('medium');
+        else if (type === 'success') tg.HapticFeedback.notificationOccurred('success');
+      } catch (e) {}
+    }
+
+    let audioCtx = null;
+    function playSound(freq, type = 'sine', dur = 0.12) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, audioCtx.currentTime + dur);
+        gain.gain.setValueAtTime(0.11, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch (e) {}
+    }
+
+    const RANKS = [
+      { name: 'Двор Хрущёвки', goal: 50, groundColor: 0x5cb85c, skyColor: 0x6ec6ff },
+      { name: 'Центральный Парк', goal: 150, groundColor: 0x43a047, skyColor: 0x4fc3f7 },
+      { name: 'Москва-Сити Плаза', goal: 400, groundColor: 0x26a69a, skyColor: 0x29b6f6 },
+      { name: 'Рублёвка Элит', goal: 1000, groundColor: 0x7cb342, skyColor: 0xffd54f }
+    ];
+
+    const saved = JSON.parse(localStorage.getItem('dvornik_save_v2') || '{}');
+    const state = {
+      isPlaying: false,
+      coins: saved.coins || 0,
+      bag: 0,
+      totalCleaned: saved.totalCleaned || 0,
+      rankIdx: saved.rankIdx || 0,
+      bagLevel: saved.bagLevel || 1,
+      toolLevel: saved.toolLevel || 1,
+      speedLevel: saved.speedLevel || 1,
+      hasPet: saved.hasPet || false,
+      hasMagnet: saved.hasMagnet || false,
+      isVip: saved.isVip || false,
+      get bagCap() { return this.isVip ? 9999 : (10 + (this.bagLevel - 1) * 10); },
+      get pickupRadius() { return 1.9 + (this.toolLevel - 1) * 0.45 + (this.hasMagnet ? 3.2 : 0); },
+      get moveSpeed() { return 9.5 + (this.speedLevel - 1) * 1.4; },
+      get bagCost() { return Math.floor(15 * Math.pow(1.6, this.bagLevel - 1)); },
+      get toolCost() { return Math.floor(25 * Math.pow(1.75, this.toolLevel - 1)); },
+      get speedCost() { return Math.floor(20 * Math.pow(1.65, this.speedLevel - 1)); }
+    };
+
+    function saveGame() {
+      try {
+        localStorage.setItem('dvornik_save_v2', JSON.stringify({
+          coins: state.coins,
+          totalCleaned: state.totalCleaned,
+          rankIdx: state.rankIdx,
+          bagLevel: state.bagLevel,
+          toolLevel: state.toolLevel,
+          speedLevel: state.speedLevel,
+          hasPet: state.hasPet,
+          hasMagnet: state.hasMagnet,
+          isVip: state.isVip
+        }));
+      } catch (e) {}
+    }
+
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.style.opacity = '1';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.style.opacity = '0'; }, 2300);
+    }
+
+    const canvas = document.getElementById('game-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    const curRank = RANKS[state.rankIdx] || RANKS[0];
+    scene.background = new THREE.Color(curRank.skyColor);
+    scene.fog = new THREE.Fog(curRank.skyColor, 28, 72);
+
+    const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 120);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x3b7a2a, 0.88);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(18, 30, 15);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(1024, 1024);
+    scene.add(dirLight);
+
+    const ARENA = 24;
+    const groundMat = new THREE.MeshLambertMaterial({ color: curRank.groundColor });
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(ARENA * 2, 1, ARENA * 2), groundMat);
+    ground.position.y = -0.5;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const pathMat = new THREE.MeshLambertMaterial({ color: 0xd7ccc8 });
+    const path1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.04, ARENA * 2), pathMat);
+    path1.position.y = 0.02;
+    scene.add(path1);
+    const path2 = new THREE.Mesh(new THREE.BoxGeometry(ARENA * 2, 0.04, 4), pathMat);
+    path2.position.y = 0.02;
+    scene.add(path2);
+
+    const fenceMat = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
+    for (let i = -ARENA; i <= ARENA; i += 4) {
+      [[-ARENA, i], [ARENA, i], [i, -ARENA], [i, ARENA]].forEach(([fx, fz]) => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 0.5), fenceMat);
+        post.position.set(fx, 0.9, fz);
+        post.castShadow = true;
+        scene.add(post);
+      });
+    }
+
+    function addTree(x, z) {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.9), new THREE.MeshLambertMaterial({ color: 0x6d4c41 }));
+      trunk.position.y = 1.3;
+      trunk.castShadow = true;
+      g.add(trunk);
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 3.2), new THREE.MeshLambertMaterial({ color: 0x2e7d32 }));
+      crown.position.y = 3.8;
+      crown.castShadow = true;
+      g.add(crown);
+      g.position.set(x, 0, z);
+      scene.add(g);
+    }
+    [[-16, -16], [16, -16], [-16, 16], [16, 16], [-18, 0], [18, 0]].forEach(([x, z]) => addTree(x, z));
+
+    function createZone(x, z, color) {
+      const ring = new THREE.Mesh(
+        new THREE.CylinderGeometry(3.2, 3.2, 0.12, 24),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75 })
+      );
+      ring.position.set(x, 0.06, z);
+      scene.add(ring);
+      return ring;
+    }
+    const sellZone = createZone(0, -12, 0x00e676);
+    const shopZone = createZone(10, -10, 0xffca28);
+
+    const player = new THREE.Group();
+    const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, 0.7), new THREE.MeshLambertMaterial({ color: state.isVip ? 0xffd54f : 0x1976d2 }));
+    bodyMesh.position.y = 1.35;
+    bodyMesh.castShadow = true;
+    player.add(bodyMesh);
+
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), new THREE.MeshLambertMaterial({ color: 0xffcc80 }));
+    headMesh.position.y = 2.5;
+    headMesh.castShadow = true;
+    player.add(headMesh);
+
+    const capMesh = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.3, 1.15), new THREE.MeshLambertMaterial({ color: 0xe53935 }));
+    capMesh.position.set(0, 3.05, 0.08);
+    player.add(capMesh);
+
+    const bagMesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.0, 0.6), new THREE.MeshLambertMaterial({ color: 0x5d4037 }));
+    bagMesh.position.set(0, 1.4, -0.6);
+    bagMesh.castShadow = true;
+    player.add(bagMesh);
+
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.7, 0.5), new THREE.MeshLambertMaterial({ color: 0x263238 }));
+    legL.position.set(-0.28, 0.35, 0);
+    player.add(legL);
+
+    const legR = legL.clone();
+    legR.position.set(0.28, 0.35, 0);
+    player.add(legR);
+
+    const shovelGroup = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.6, 0.12), new THREE.MeshLambertMaterial({ color: 0x8d6e63 }));
+    stick.position.y = 0.6;
+    shovelGroup.add(stick);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.5, 0.1), new THREE.MeshLambertMaterial({ color: 0xb0bec5 }));
+    blade.position.y = 1.45;
+    shovelGroup.add(blade);
+    shovelGroup.position.set(0.75, 1.1, 0.3);
+    shovelGroup.rotation.x = 0.7;
+    player.add(shovelGroup);
+
+    scene.add(player);
+
+    const petMesh = new THREE.Group();
+    const petCore = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), new THREE.MeshLambertMaterial({ color: 0x00e5ff }));
+    petMesh.add(petCore);
+    petMesh.visible = state.hasPet;
+    scene.add(petMesh);
+
+    const items = [];
+    function spawnItem() {
+      if (items.length >= 28) return;
+      const roll = Math.random();
+      let type = 'normal', color = 0x6d4c41, val = 1, scale = 1;
+      if (roll > 0.92) { type = 'toxic'; color = 0x76ff03; val = 5; scale = 1.45; }
+      else if (roll > 0.76) { type = 'gold'; color = 0xffd600; val = 3; scale = 1.2; }
+
+      const g = new THREE.Group();
+      const mat = new THREE.MeshLambertMaterial({ color });
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.35, 0.95), mat);
+      b1.position.y = 0.18;
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.32, 0.68), mat);
+      b2.position.y = 0.5;
+      const b3 = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.38), mat);
+      b3.position.y = 0.78;
+      g.add(b1, b2, b3);
+      g.scale.setScalar(scale);
+
+      let rx = (Math.random() - 0.5) * (ARENA * 1.7);
+      let rz = (Math.random() - 0.5) * (ARENA * 1.7);
+      if (Math.hypot(rx, rz + 12) < 4.5) rz += 6;
+      g.position.set(rx, 0, rz);
+      scene.add(g);
+      items.push({ mesh: g, val, type });
+    }
+    for (let i = 0; i < 24; i++) spawnItem();
+
+    const input = { x: 0, z: 0, dashTimer: 0 };
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'Space') triggerJump();
+      if (e.code === 'ShiftLeft') triggerDash();
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    const joyArea = document.getElementById('joystick-touch-area');
+    const joyBase = document.getElementById('joystick-base');
+    const joyKnob = document.getElementById('joystick-knob');
+    let activePointerId = null;
+    let originX = 0;
+    let originY = 0;
+    const MAX_RADIUS = 48;
+
+    function startStick(id, clientX, clientY) {
+      activePointerId = id;
+      originX = clientX;
+      originY = clientY;
+      joyBase.style.left = (clientX - 66) + 'px';
+      joyBase.style.top = (clientY - 66) + 'px';
+      joyBase.style.bottom = 'auto';
+      joyKnob.style.transform = 'translate(0px, 0px)';
+      input.x = 0;
+      input.z = 0;
+    }
+
+    function moveStick(clientX, clientY) {
+      let dx = clientX - originX;
+      let dy = clientY - originY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > MAX_RADIUS) {
+        dx = (dx / dist) * MAX_RADIUS;
+        dy = (dy / dist) * MAX_RADIUS;
+      }
+      joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      input.x = dx / MAX_RADIUS;
+      input.z = dy / MAX_RADIUS;
+    }
+
+    function endStick() {
+      activePointerId = null;
+      joyBase.style.left = '24px';
+      joyBase.style.top = 'auto';
+      joyBase.style.bottom = '32px';
+      joyKnob.style.transform = 'translate(0px, 0px)';
+      input.x = 0;
+      input.z = 0;
+    }
+
+    joyArea.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (activePointerId !== null) return;
+      joyArea.setPointerCapture(e.pointerId);
+      startStick(e.pointerId, e.clientX, e.clientY);
+    });
+
+    joyArea.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== activePointerId) return;
+      e.preventDefault();
+      moveStick(e.clientX, e.clientY);
+    });
+
+    joyArea.addEventListener('pointerup', (e) => {
+      if (e.pointerId === activePointerId) endStick();
+    });
+    joyArea.addEventListener('pointercancel', (e) => {
+      if (e.pointerId === activePointerId) endStick();
+    });
+
+    let vy = 0;
+    let isGrounded = true;
+    function triggerJump() {
+      if (!state.isPlaying || !isGrounded) return;
+      vy = 11.5;
+      isGrounded = false;
+      playSound(320, 'triangle', 0.14);
+      haptic('light');
+    }
+
+    let dashCooldown = 0;
+    function triggerDash() {
+      if (!state.isPlaying || dashCooldown > 0) return;
+      input.dashTimer = 0.28;
+      dashCooldown = 1.3;
+      playSound(520, 'sawtooth', 0.15);
+      haptic('medium');
+    }
+
+    function bindTap(el, fn) {
+      el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.add('pressed');
+        fn();
+      });
+      el.addEventListener('pointerup', () => el.classList.remove('pressed'));
+      el.addEventListener('pointercancel', () => el.classList.remove('pressed'));
+    }
+
+    bindTap(document.getElementById('btn-jump'), triggerJump);
+    bindTap(document.getElementById('btn-dash'), triggerDash);
+
+    const mainMenu = document.getElementById('main-menu');
+    const hud = document.getElementById('hud');
+    const actBtns = document.getElementById('action-buttons');
+    const shopModal = document.getElementById('shop-modal');
+    const donateModal = document.getElementById('donate-modal');
+
+    function startGame() {
+      state.isPlaying = true;
+      mainMenu.classList.add('hidden');
+      hud.classList.add('active');
+      joyArea.classList.add('active');
+      actBtns.classList.add('active');
+      updateUI();
+      showToast('Тяни в любом месте слева для бега!');
+      playSound(440, 'triangle', 0.15);
+    }
+
+    function openMainMenu() {
+      state.isPlaying = false;
+      endStick();
+      mainMenu.classList.remove('hidden');
+      hud.classList.remove('active');
+      joyArea.classList.remove('active');
+      actBtns.classList.remove('active');
+      updateUI();
+    }
+
+    bindTap(document.getElementById('btn-start-game'), startGame);
+    bindTap(document.getElementById('btn-menu-open'), openMainMenu);
+    bindTap(document.getElementById('btn-shop-open'), () => { updateUI(); shopModal.classList.add('open'); });
+    bindTap(document.getElementById('btn-shop-close'), () => shopModal.classList.remove('open'));
+    bindTap(document.getElementById('btn-donate-open'), () => { updateUI(); donateModal.classList.add('open'); });
+    bindTap(document.getElementById('btn-menu-donate'), () => { updateUI(); donateModal.classList.add('open'); });
+    bindTap(document.getElementById('btn-donate-close'), () => donateModal.classList.remove('open'));
+
+    function updateUI() {
+      const rank = RANKS[state.rankIdx] || RANKS[RANKS.length - 1];
+      document.getElementById('menu-rank').textContent = rank.name;
+      document.getElementById('menu-coins').textContent = state.coins + ' 💰';
+      document.getElementById('menu-total').textContent = state.totalCleaned + ' ед.';
+      document.getElementById('menu-vip').textContent = state.isVip ? '💎 VIP x3' : 'Обычный';
+
+      document.getElementById('ui-coins').textContent = state.coins;
+      document.getElementById('ui-rank').textContent = rank.name;
+      document.getElementById('ui-bag').textContent = state.isVip ? `${state.bag} / ∞` : `${state.bag} / ${state.bagCap}`;
+      document.getElementById('bag-bar').style.width = state.isVip ? '35%' : `${Math.min(100, (state.bag / state.bagCap) * 100)}%`;
+
+      document.getElementById('ui-clean').textContent = `${state.totalCleaned} / ${rank.goal}`;
+      document.getElementById('clean-bar').style.width = `${Math.min(100, (state.totalCleaned / rank.goal) * 100)}%`;
+
+      const bagScale = state.isVip ? 1.25 : (1 + (state.bag / Math.max(10, state.bagCap)) * 0.65);
+      bagMesh.scale.set(bagScale, bagScale, bagScale);
+
+      document.getElementById('lvl-bag').textContent = state.bagLevel;
+      document.getElementById('desc-bag').textContent = state.isVip ? '∞' : state.bagCap;
+      const bBag = document.getElementById('buy-bag');
+      bBag.textContent = state.isVip ? 'VIP ∞' : `${state.bagCost} 💰`;
+      bBag.disabled = state.isVip || state.coins < state.bagCost;
+
+      document.getElementById('lvl-tool').textContent = state.toolLevel;
+      document.getElementById('desc-tool').textContent = state.toolLevel;
+      const bTool = document.getElementById('buy-tool');
+      bTool.textContent = `${state.toolCost} 💰`;
+      bTool.disabled = state.coins < state.toolCost;
+
+      document.getElementById('lvl-speed').textContent = state.speedLevel;
+      const bSpeed = document.getElementById('buy-speed');
+      bSpeed.textContent = `${state.speedCost} 💰`;
+      bSpeed.disabled = state.coins < state.speedCost;
+
+      const bPet = document.getElementById('buy-pet');
+      if (state.hasPet) {
+        document.getElementById('lvl-pet').textContent = 'Активен';
+        bPet.textContent = 'КУПЛЕНО';
+        bPet.disabled = true;
+      } else {
+        bPet.textContent = '100 💰';
+        bPet.disabled = state.coins < 100;
+      }
+
+      const dMag = document.getElementById('don-magnet');
+      if (state.hasMagnet) { dMag.textContent = 'АКТИВЕН'; dMag.disabled = true; }
+      const dVip = document.getElementById('don-vip');
+      if (state.isVip) { dVip.textContent = 'АКТИВЕН'; dVip.disabled = true; }
+    }
+
+    document.getElementById('buy-bag').addEventListener('click', () => {
+      if (!state.isVip && state.coins >= state.bagCost) {
+        state.coins -= state.bagCost;
+        state.bagLevel++;
+        playSound(600, 'sine', 0.18);
+        haptic('success');
+        saveGame();
+        updateUI();
+      }
+    });
+    document.getElementById('buy-tool').addEventListener('click', () => {
+      if (state.coins >= state.toolCost) {
+        state.coins -= state.toolCost;
+        state.toolLevel++;
+        playSound(660, 'sine', 0.18);
+        haptic('success');
+        saveGame();
+        updateUI();
+      }
+    });
+    document.getElementById('buy-speed').addEventListener('click', () => {
+      if (state.coins >= state.speedCost) {
+        state.coins -= state.speedCost;
+        state.speedLevel++;
+        playSound(720, 'sine', 0.18);
+        haptic('success');
+        saveGame();
+        updateUI();
+      }
+    });
+    document.getElementById('buy-pet').addEventListener('click', () => {
+      if (!state.hasPet && state.coins >= 100) {
+        state.coins -= 100;
+        state.hasPet = true;
+        petMesh.visible = true;
+        playSound(880, 'triangle', 0.25);
+        haptic('success');
+        saveGame();
+        updateUI();
+      }
+    });
+
+    function triggerStarsPurchase(itemKey) {
+      if (itemKey === 'magnet' && !state.hasMagnet) {
+        state.hasMagnet = true;
+        showToast('🧲 Магнит чистоты активирован!');
+      } else if (itemKey === 'vip' && !state.isVip) {
+        state.isVip = true;
+        bodyMesh.material.color.setHex(0xffd54f);
+        showToast('💎 VIP Золотой Дворник активирован!');
+      } else if (itemKey === 'nuke') {
+        let bonus = 0;
+        while (items.length > 0) {
+          const it = items.pop();
+          bonus += it.val;
+          scene.remove(it.mesh);
+        }
+        state.totalCleaned += bonus;
+        state.coins += 250 + bonus * 2;
+        showToast('🚛 Камаз очистил весь район! +250 💰');
+      }
+      playSound(880, 'triangle', 0.25);
+      haptic('success');
+      saveGame();
+      updateUI();
+    }
+
+    document.getElementById('don-magnet').addEventListener('click', () => triggerStarsPurchase('magnet'));
+    document.getElementById('don-vip').addEventListener('click', () => triggerStarsPurchase('vip'));
+    document.getElementById('don-nuke').addEventListener('click', () => triggerStarsPurchase('nuke'));
+
+    updateUI();
+
+    let lastTime = performance.now();
+    let walkTime = 0;
+    let shopZoneLock = false;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      if (!state.isPlaying) {
+        const camAngle = now * 0.0005;
+        camera.position.set(Math.sin(camAngle) * 14, 9.5, Math.cos(camAngle) * 14);
+        camera.lookAt(0, 1.5, 0);
+        renderer.render(scene, camera);
+        return;
+      }
+
+      let mx = input.x;
+      let mz = input.z;
+      if (keys['KeyW'] || keys['ArrowUp']) mz -= 1;
+      if (keys['KeyS'] || keys['ArrowDown']) mz += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+
+      const len = Math.hypot(mx, mz);
+      if (len > 1) { mx /= len; mz /= len; }
+
+      if (dashCooldown > 0) dashCooldown -= dt;
+      let speedMult = 1;
+      if (input.dashTimer > 0) {
+        input.dashTimer -= dt;
+        speedMult = 2.1;
+      }
+
+      if (len > 0.04) {
+        const spd = state.moveSpeed * speedMult;
+        player.position.x = THREE.MathUtils.clamp(player.position.x + mx * spd * dt, -ARENA + 1.2, ARENA - 1.2);
+        player.position.z = THREE.MathUtils.clamp(player.position.z + mz * spd * dt, -ARENA + 1.2, ARENA - 1.2);
+        player.rotation.y = Math.atan2(mx, mz);
+
+        walkTime += dt * 12;
+        legL.rotation.x = Math.sin(walkTime) * 0.65;
+        legR.rotation.x = -Math.sin(walkTime) * 0.65;
+        shovelGroup.rotation.x = 0.7 + Math.sin(walkTime) * 0.25;
+      } else {
+        legL.rotation.x = 0;
+        legR.rotation.x = 0;
+      }
+
+      if (!isGrounded) {
+        player.position.y += vy * dt;
+        vy -= 28 * dt;
+        if (player.position.y <= 0) {
+          player.position.y = 0;
+          vy = 0;
+          isGrounded = true;
+        }
+      }
+
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.mesh.rotation.y += dt * 1.4;
+        const dx = player.position.x - it.mesh.position.x;
+        const dz = player.position.z - it.mesh.position.z;
+        const d = Math.hypot(dx, dz);
+
+        if (state.hasMagnet && d < state.pickupRadius + 3.5 && state.bag < state.bagCap) {
+          it.mesh.position.x += (dx / Math.max(0.1, d)) * 11 * dt;
+          it.mesh.position.z += (dz / Math.max(0.1, d)) * 11 * dt;
+        }
+
+        if (d <= (state.hasMagnet ? 2.2 : state.pickupRadius)) {
+          if (state.bag < state.bagCap) {
+            state.bag = Math.min(state.bagCap, state.bag + it.val);
+            scene.remove(it.mesh);
+            items.splice(i, 1);
+            playSound(440 + Math.min(400, state.bag * 12), 'sine', 0.09);
+            haptic('light');
+            updateUI();
+            if (!state.isVip && state.bag >= state.bagCap) showToast('Рюкзак полон! Сдай в зелёный круг!');
+          } else {
+            showToast('Рюкзак полон! Беги в зелёный круг!');
+          }
+        }
+      }
+      if (Math.random() < dt * 1.5) spawnItem();
+
+      if (state.hasPet) {
+        const angle = now * 0.0025;
+        petMesh.position.set(
+          player.position.x + Math.cos(angle) * 2.2,
+          2.6 + Math.sin(now * 0.006) * 0.25,
+          player.position.z + Math.sin(angle) * 2.2
+        );
+        petMesh.rotation.y += dt * 4;
+        if (state.bag < state.bagCap && items.length > 0 && Math.random() < dt * 1.3) {
+          const it = items.pop();
+          state.bag = Math.min(state.bagCap, state.bag + it.val);
+          scene.remove(it.mesh);
+          updateUI();
+        }
+      }
+
+      const distSell = Math.hypot(player.position.x - sellZone.position.x, player.position.z - sellZone.position.z);
+      if (distSell < 3.3 && state.bag > 0) {
+        const mult = state.toolLevel * (state.hasPet ? 2 : 1) * (state.isVip ? 3 : 1);
+        const earned = state.bag * mult;
+        state.coins += earned;
+        state.totalCleaned += state.bag;
+        state.bag = 0;
+
+        const curR = RANKS[state.rankIdx];
+        if (curR && state.totalCleaned >= curR.goal && state.rankIdx < RANKS.length - 1) {
+          state.rankIdx++;
+          const nextR = RANKS[state.rankIdx];
+          groundMat.color.setHex(nextR.groundColor);
+          scene.background.setHex(nextR.skyColor);
+          scene.fog.color.setHex(nextR.skyColor);
+          showToast(`🎉 Новый район: ${nextR.name}!`);
+        } else {
+          showToast(`+${earned} 💰 за очистку!`);
+        }
+
+        playSound(780, 'triangle', 0.22);
+        haptic('success');
+        saveGame();
+        updateUI();
+      }
+
+      const distShop = Math.hypot(player.position.x - shopZone.position.x, player.position.z - shopZone.position.z);
+      if (distShop < 3.2) {
+        if (!shopZoneLock) {
+          shopZoneLock = true;
+          updateUI();
+          shopModal.classList.add('open');
+        }
+      } else {
+        shopZoneLock = false;
+      }
+
+      camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y + 11.5, player.position.z + 12.5), 0.14);
+      camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
